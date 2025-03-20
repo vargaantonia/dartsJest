@@ -1,61 +1,82 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import axios from 'axios';
-import { DartsCreate } from './DartsCreate';
+import React from 'react'; // React importálása szükséges, ha JSX-t használsz
+import { render, screen, fireEvent } from "@testing-library/react";
+import { DartsCreate } from "./DartsCreate";
+import { MemoryRouter } from "react-router-dom";
+import axios from "axios";
 
-jest.mock('axios');
+jest.mock("axios");
+jest.mock("react-router-dom", () => ({
+    ...jest.requireActual("react-router-dom"),
+    useNavigate: jest.fn(),
+}));
 
-describe('DartsCreate Component', () => {
-    test('renders the component', () => {
-        render(
-            <BrowserRouter>
-                <DartsCreate />
-            </BrowserRouter>
-        );
-        expect(screen.getByText('Új darts-játékos')).toBeInTheDocument();
+describe("DartsCreate component", () => {
+    let mockNavigate;
+
+    beforeEach(() => {
+        mockNavigate = require("react-router-dom").useNavigate;
+        mockNavigate.mockReturnValue(jest.fn());
     });
 
-    test('renders the form fields', () => {
+    test("should render form fields correctly", () => {
         render(
-            <BrowserRouter>
+            <MemoryRouter>
                 <DartsCreate />
-            </BrowserRouter>
+            </MemoryRouter>
         );
-        expect(screen.getByLabelText('Dartsozó neve:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Születési éve:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Nyert világbajnokságai:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Profil URL-je:')).toBeInTheDocument();
-        expect(screen.getByLabelText('Kép URL-je:')).toBeInTheDocument();
+
+        expect(screen.getByText("Új darts-játékos")).toBeInTheDocument();
+        expect(screen.getByLabelText("Dartsozó neve:")).toBeInTheDocument();
+        expect(screen.getByLabelText("Születési éve:")).toBeInTheDocument();
+        expect(screen.getByLabelText("Nyert világbajnokságai:")).toBeInTheDocument();
+        expect(screen.getByLabelText("Profil URL-je:")).toBeInTheDocument();
+        expect(screen.getByLabelText("Kép URL-je:")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Küldés" })).toBeInTheDocument();
     });
 
-    test('submits the form', async () => {
+    test("should submit the form and call axios.post", async () => {
         axios.post.mockResolvedValueOnce({});
 
         render(
-            <BrowserRouter>
+            <MemoryRouter>
                 <DartsCreate />
-            </BrowserRouter>
+            </MemoryRouter>
         );
 
-        fireEvent.change(screen.getByLabelText('Dartsozó neve:'), { target: { value: 'John Doe' } });
-        fireEvent.change(screen.getByLabelText('Születési éve:'), { target: { value: '1990-01-01' } });
-        fireEvent.change(screen.getByLabelText('Nyert világbajnokságai:'), { target: { value: '3' } });
-        fireEvent.change(screen.getByLabelText('Profil URL-je:'), { target: { value: 'http://example.com/profile' } });
-        fireEvent.change(screen.getByLabelText('Kép URL-je:'), { target: { value: 'http://example.com/image' } });
+        fireEvent.change(screen.getByLabelText("Dartsozó neve:"), { target: { value: "John Doe" } });
+        fireEvent.change(screen.getByLabelText("Születési éve:"), { target: { value: "1990-05-15" } });
+        fireEvent.change(screen.getByLabelText("Nyert világbajnokságai:"), { target: { value: "3" } });
+        fireEvent.change(screen.getByLabelText("Profil URL-je:"), { target: { value: "https://example.com/profile" } });
+        fireEvent.change(screen.getByLabelText("Kép URL-je:"), { target: { value: "https://example.com/image.jpg" } });
 
-        fireEvent.submit(screen.getByRole('button', { name: /küldés/i }));
+        fireEvent.submit(screen.getByRole("button", { name: "Küldés" }));
 
-        expect(axios.post).toHaveBeenCalledWith(
-            'https://darts.sulla.hu/darts',
-            {
-                name: 'John Doe',
-                birth_date: '1990-01-01',
-                world_ch_won: '3',
-                profile_url: 'http://example.com/profile',
-                image_url: 'http://example.com/image',
-            },
-            { headers: { 'Content-Type': 'application/json' } }
+        expect(axios.post).toHaveBeenCalledWith("https://darts.sulla.hu/darts", {
+            name: "John Doe",
+            birth_date: "1990-05-15",
+            world_ch_won: "3",
+            profile_url: "https://example.com/profile",
+            image_url: "https://example.com/image.jpg",
+        }, {
+            headers: { "Content-Type": "application/json" },
+        });
+
+        expect(mockNavigate).toHaveBeenCalled(); 
+    });
+
+    test("should handle axios error", async () => {
+        axios.post.mockRejectedValueOnce(new Error("Hiba történt"));
+
+        render(
+            <MemoryRouter>
+                <DartsCreate />
+            </MemoryRouter>
         );
+
+        fireEvent.change(screen.getByLabelText("Dartsozó neve:"), { target: { value: "Jane Doe" } });
+        fireEvent.submit(screen.getByRole("button", { name: "Küldés" }));
+
+        expect(axios.post).toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
     });
 });

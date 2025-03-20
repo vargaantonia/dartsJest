@@ -1,101 +1,91 @@
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { DartsMod } from "./DartsMod";
+import axios from "axios";
+import { jest } from "@jest/globals";
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import axios from 'axios';
-import { DartsMod } from './DartsMod';
 
-jest.mock('axios');
 
-describe('DartsMod Component', () => {
-    test('renders the component', async () => {
+jest.mock("axios");
+jest.mock("react-router-dom", () => ({
+    ...jest.requireActual("react-router-dom"),
+    useParams: () => ({ dartsId: "1" }),
+    useNavigate: jest.fn(),
+}));
+
+describe("DartsMod component", () => {
+    let mockNavigate;
+
+    beforeEach(() => {
+        mockNavigate = require("react-router-dom").useNavigate();
+        mockNavigate.mockReturnValue(jest.fn());
+    });
+
+    test("should fetch and display darts player data in form", async () => {
         axios.get.mockResolvedValueOnce({
             data: {
-                id: 1,
-                name: 'John Doe',
-                birth_date: '1990-01-01',
+                name: "John Doe",
+                birth_date: "1990-05-15",
                 world_ch_won: 3,
-                profile_url: 'http://example.com/profile',
-                image_url: 'http://example.com/image'
-            }
+                profile_url: "https://example.com/profile",
+                image_url: "https://example.com/image.jpg",
+            },
         });
 
         render(
-            <BrowserRouter>
+            <MemoryRouter>
                 <DartsMod />
-            </BrowserRouter>
+            </MemoryRouter>
         );
 
+        expect(axios.get).toHaveBeenCalledWith("https://darts.sulla.hu/darts/1");
+
         await waitFor(() => {
-            expect(screen.getByText('Egy dartsozó módosítása')).toBeInTheDocument();
+            expect(screen.getByDisplayValue("John Doe")).toBeInTheDocument();
+            expect(screen.getByDisplayValue("1990-05-15")).toBeInTheDocument();
+            expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+            expect(screen.getByDisplayValue("https://example.com/profile")).toBeInTheDocument();
+            expect(screen.getByDisplayValue("https://example.com/image.jpg")).toBeInTheDocument();
+            expect(screen.getByRole("img", { name: "John Doe" })).toHaveAttribute("src", "https://example.com/image.jpg");
         });
     });
 
-    test('renders the form fields', async () => {
+    test("should update darts player data on form submission", async () => {
         axios.get.mockResolvedValueOnce({
             data: {
-                id: 1,
-                name: 'John Doe',
-                birth_date: '1990-01-01',
+                name: "John Doe",
+                birth_date: "1990-05-15",
                 world_ch_won: 3,
-                profile_url: 'http://example.com/profile',
-                image_url: 'http://example.com/image'
-            }
-        });
-
-        render(
-            <BrowserRouter>
-                <DartsMod />
-            </BrowserRouter>
-        );
-
-        await waitFor(() => {
-            expect(screen.getByLabelText('Dartsozó név:')).toBeInTheDocument();
-            expect(screen.getByLabelText('Születési dátum:')).toBeInTheDocument();
-            expect(screen.getByLabelText('Nyert világbajnokságok:')).toBeInTheDocument();
-            expect(screen.getByLabelText('Profil URL-je:')).toBeInTheDocument();
-            expect(screen.getByLabelText('Kép URL-je:')).toBeInTheDocument();
-        });
-    });
-
-    test('submits the form', async () => {
-        axios.get.mockResolvedValueOnce({
-            data: {
-                id: 1,
-                name: 'John Doe',
-                birth_date: '1990-01-01',
-                world_ch_won: 3,
-                profile_url: 'http://example.com/profile',
-                image_url: 'http://example.com/image'
-            }
+                profile_url: "https://example.com/profile",
+                image_url: "https://example.com/image.jpg",
+            },
         });
 
         axios.put.mockResolvedValueOnce({});
 
         render(
-            <BrowserRouter>
+            <MemoryRouter>
                 <DartsMod />
-            </BrowserRouter>
+            </MemoryRouter>
         );
+
+        await waitFor(() => expect(screen.getByDisplayValue("John Doe")).toBeInTheDocument());
+
+        fireEvent.change(screen.getByDisplayValue("John Doe"), { target: { value: "Jane Doe" } });
+        fireEvent.change(screen.getByDisplayValue("1990-05-15"), { target: { value: "1992-08-22" } });
+        fireEvent.change(screen.getByDisplayValue("3"), { target: { value: "5" } });
+
+        fireEvent.click(screen.getByRole("button", { name: "Küldés" }));
 
         await waitFor(() => {
-            fireEvent.change(screen.getByLabelText('Dartsozó név:'), { target: { value: 'Jane Doe' } });
-            fireEvent.change(screen.getByLabelText('Születési dátum:'), { target: { value: '1991-01-01' } });
-            fireEvent.change(screen.getByLabelText('Nyert világbajnokságok:'), { target: { value: '4' } });
-            fireEvent.change(screen.getByLabelText('Profil URL-je:'), { target: { value: 'http://example.com/new-profile' } });
-            fireEvent.change(screen.getByLabelText('Kép URL-je:'), { target: { value: 'http://example.com/new-image' } });
-
-            fireEvent.submit(screen.getByRole('button', { name: /küldés/i }));
+            expect(axios.put).toHaveBeenCalledWith("https://darts.sulla.hu/darts/1", {
+                name: "Jane Doe",
+                birth_date: "1992-08-22",
+                world_ch_won: "5",
+                profile_url: "https://example.com/profile",
+                image_url: "https://example.com/image.jpg",
+            });
+            expect(mockNavigate).toHaveBeenCalledWith("/");
         });
-
-        expect(axios.put).toHaveBeenCalledWith(
-            'https://darts.sulla.hu/darts/1',
-            {
-                name: 'Jane Doe',
-                birth_date: '1991-01-01',
-                world_ch_won: '4',
-                profile_url: 'http://example.com/new-profile',
-                image_url: 'http://example.com/new-image',
-            }
-        );
     });
 });
